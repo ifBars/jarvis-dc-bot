@@ -108,7 +108,8 @@ async def get_chat_session(channel_id: int, user_id: int):
     if key not in chat_sessions:
         print(f"Creating new chat session for channel {channel_id} and user {user_id}.")
         client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
-        chat = await asyncio.to_thread(client.chats.create, model="gemini-2.0-flash")
+        gen_config = types.GenerateContentConfig(temperature=0.7)
+        chat = await asyncio.to_thread(client.chats.create, model="gemini-2.0-flash", config=gen_config)
         system_instructions = await build_system_instructions()
         await asyncio.to_thread(chat.send_message, system_instructions)
         print("Chat session primed with system instructions.")
