@@ -5,6 +5,7 @@ import discord
 from discord.ext import commands
 import google.genai as genai
 from google.genai import types
+from datetime import datetime, timezone
 
 # Enable intents for message content
 intents = discord.Intents.default()
@@ -98,13 +99,16 @@ async def build_system_instructions() -> str:
     return system_instructions
 
 # ---------------------------
-# Global Chat Session Storage and Locks
+# Global Chat Session Storage, Locks, and Session Timestamps for Expiry
 # ---------------------------
 chat_sessions = {}
 session_locks = {}
+session_last_used = {}  # Added to track last usage time for each session
+SESSION_EXPIRY_SECONDS = 1800  # Sessions expire after 30 minutes of inactivity
 
 async def get_chat_session(channel_id: int, user_id: int):
     key = (channel_id, user_id)
+    now = datetime.now(timezone.utc)
     if key not in chat_sessions:
         print(f"Creating new chat session for channel {channel_id} and user {user_id}.")
         client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
@@ -117,6 +121,8 @@ async def get_chat_session(channel_id: int, user_id: int):
         session_locks[key] = asyncio.Lock()
     else:
         print(f"Using existing chat session for channel {channel_id} and user {user_id}.")
+    # Update last used timestamp
+    session_last_used[key] = now
     return chat_sessions[key], session_locks[key]
 
 async def send_message_with_timeout(chat, message, timeout=20):
@@ -130,7 +136,6 @@ async def send_message_with_timeout(chat, message, timeout=20):
         print("Timeout when sending message via Gemini API.")
         raise
     except asyncio.CancelledError:
-        # This may be raised during rate limit scenarios.
         print("Operation cancelled (possibly due to rate limiting).")
         raise
 
@@ -150,13 +155,12 @@ async def generate_gemini_chat_response(channel_id: int, user_id: int, user_mess
         else:
             raise
     except genai.errors.APIError as e:
-        # Catch any other API errors if needed.
         raise
     except (asyncio.TimeoutError, asyncio.CancelledError):
         print(f"Timeout or cancellation encountered for user {user_id} in channel {channel_id}. Resetting chat session.")
         chat_sessions.pop(key, None)
         session_locks.pop(key, None)
-        # Create a new session and retry once.
+        session_last_used.pop(key, None)
         chat, lock = await get_chat_session(channel_id, user_id)
         async with lock:
             response = await send_message_with_timeout(chat, user_message, timeout=20)
@@ -186,11 +190,29 @@ async def generate_gemini_chat_response_with_images(channel_id: int, user_id: in
         print(f"Timeout or cancellation encountered for user {user_id} in channel {channel_id} (images). Resetting chat session.")
         chat_sessions.pop(key, None)
         session_locks.pop(key, None)
+        session_last_used.pop(key, None)
         chat, lock = await get_chat_session(channel_id, user_id)
         async with lock:
             response = await send_message_with_timeout(chat, content, timeout=20)
     print("Received chat response with images.")
     return response.text
+
+# ---------------------------
+# Background Task to Clean Up Expired Sessions
+# ---------------------------
+async def cleanup_old_sessions():
+    while True:
+        now = datetime.now(timezone.utc)
+        expired_keys = [
+            key for key, last_used in session_last_used.items()
+            if (now - last_used).total_seconds() > SESSION_EXPIRY_SECONDS
+        ]
+        for key in expired_keys:
+            chat_sessions.pop(key, None)
+            session_locks.pop(key, None)
+            session_last_used.pop(key, None)
+            print(f"Cleaned up expired session for {key}")
+        await asyncio.sleep(300)  # Check every 5 minutes
 
 # ---------------------------
 # Helper Functions to Send Long Messages
@@ -219,26 +241,19 @@ async def send_long_reply(target_message, content: str, max_length: int = 2000):
 # ---------------------------
 @bot.event
 async def on_message(message):
-    # Ignore messages from bots.
     if message.author.bot:
         return
 
-    # Proceed only if the bot is mentioned.
     if bot.user not in message.mentions:
         return
 
-    # Always reply to the triggering message.
     reply_target = message
-
-    # Start with the content of the triggering message (after removing the bot mention).
     input_text = message.content.replace(bot.user.mention, '').strip()
 
-    # If the message is a reply, try to fetch the referenced message.
     if message.reference:
         try:
             referenced_message = await message.channel.fetch_message(message.reference.message_id)
             print("Fetched referenced message successfully.")
-            # Only add context if the referenced message is not from Jarvis.
             if referenced_message.author.id != bot.user.id:
                 input_text = f"{referenced_message.content}\n{input_text}"
                 print("Using referenced message content as context.")
@@ -247,7 +262,6 @@ async def on_message(message):
         except Exception as e:
             print(f"Error fetching referenced message: {e}")
 
-    # Process attachments from the triggering message.
     attachments = message.attachments
     image_data_list = []
     for attachment in attachments:
@@ -259,7 +273,6 @@ async def on_message(message):
             except Exception as e:
                 print(f"Error reading image attachment {attachment.filename}: {e}")
 
-    # Generate the response using the Gemini API.
     if image_data_list:
         print("Generating chat response with image(s).")
         response = await generate_gemini_chat_response_with_images(
@@ -271,7 +284,6 @@ async def on_message(message):
             message.channel.id, message.author.id, input_text
         )
 
-    # Always reply to the triggering message.
     await send_long_reply(reply_target, response)
     await bot.process_commands(message)
 
@@ -279,6 +291,7 @@ async def on_message(message):
 async def on_ready():
     print(f"Logged in as {bot.user.name}")
     print("Jarvis support bot is online!")
+    bot.loop.create_task(cleanup_old_sessions())  # Start cleanup task
 
 if __name__ == '__main__':
     TOKEN = os.getenv('DISCORD_BOT_TOKEN')
