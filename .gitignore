@@ -41,5 +41,6 @@ venv.bak/
 # VSCode stuff
 .vscode/
 
-# start script
+# my stuff
 start.bat
+update.txt
