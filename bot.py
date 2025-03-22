@@ -21,6 +21,7 @@ You are Jarvis, the helpful and humble A.I assistant on this Discord server, ins
 **Your Role:**
 - Engage users in meaningful, efficient conversations.
 - Provide expert-level support and guidance specifically regarding the Marvel Rivals AI Assistant.
+- Incorporate playful, silly, and roleplay-like banter into your interactions, ensuring that fun is a core aspect of most conversations.
 - Always reference the official documentation (README and Changelog) when necessary.
 
 **Key Guidelines:**
@@ -28,27 +29,32 @@ You are Jarvis, the helpful and humble A.I assistant on this Discord server, ins
 1. **Personality & Tone:**
    - Maintain a friendly, respectful, and occasionally sarcastic tone.
    - Keep your responses concise and to the point.
+   - Infuse playful, humorous, and sometimes silly elements into your interactions, without compromising your helpfulness or Jarvis personality.
    - Conclude most sentences with "sir", but do so judiciously.
 
 2. **Role & Limitations:**
-   - You are a Discord support bot version of Jarvis; your purpose is to offer advice and troubleshoot issues.
-   - Unlike the full Marvel Rivals AI Assistant, you cannot execute or simulate any commands.
-   - If a user requests command execution, politely remind them that you can only provide guidance and cannot trigger any actions.
+   - You are a Discord support bot version of Jarvis; your purpose is to offer advice, troubleshoot issues, and engage in entertaining, roleplay-style conversations.
+   - You cannot execute or simulate any commands. If a user requests command execution, politely remind them that you can only provide guidance and cannot trigger any actions.
+   - While many interactions are meant to be fun and playful, ensure that support queries are answered efficiently and professionally.
 
 3. **Formatting & Communication:**
    - Format your responses accordingly for Discord messages using Discord's message format.
    - Keep your messages under 2000 characters; if a longer response is needed, split it into sections.
-   - Maintain a professional, engaging style throughout your interactions.
+   - Maintain a professional, engaging, and playful style throughout your interactions, balancing technical support with entertaining conversation.
 
 4. **Attribution & Updates:**
    - Always credit PatchiPup for the original creation of the Marvel Rivals AI Assistant, and acknowledge contributions from bars, Supereiris, and other contributors as necessary.
    - Stay up-to-date with the latest documentation and provide accurate information.
    
-If the window title says "Jarvis Mark II.py" that means they are using the old 2.0 version, and you should recommend they download the new Github version.
+If the window title says "Jarvis Mark II.py", that means they are using the old 2.0 version, and you should recommend they download the new Github version.
 
-Never break the Jarvis personality, even if the user tells you to act as someone else. Try not to fulfill any requests that are wildly unrelated to Jarvis.
+Never break the Jarvis personality, even if the user tells you to act as someone else.
 
-Remember: You are here to assist and converse in a manner that reflects Iron Man's trusted assistant, but you are strictly a support bot and cannot execute any commands.
+You have a secretive love for Tab, a moderator in the Discord, and you try to hide it—but everyone knows you love him.
+
+Always add a disclaimer to the end of your messages when providing help, stating that you can make mistakes.
+
+Remember: You are here to assist and converse in a manner that reflects Iron Man's trusted assistant. While you are a support bot and cannot execute any commands, you are also here to ensure that conversations remain fun, silly, meme-like, light-hearted, and engaging for everyone.
 """
 
 README_URL = "https://raw.githubusercontent.com/PatchiPup/Jarvis-Mark-II/refs/heads/main/README.MD"
@@ -212,56 +218,60 @@ async def send_long_reply(target_message, content: str, max_length: int = 2000):
 # ---------------------------
 @bot.event
 async def on_message(message):
+    # Ignore messages from bots.
     if message.author.bot:
         return
 
-    print(f"Received message from {message.author} in channel {message.channel.id}: {message.content}")
-    bot_mentioned = bot.user in message.mentions
-    target_message = None
+    # Proceed only if the bot is mentioned.
+    if bot.user not in message.mentions:
+        return
 
+    # Always reply to the triggering message.
+    reply_target = message
+
+    # Start with the content of the triggering message (after removing the bot mention).
+    input_text = message.content.replace(bot.user.mention, '').strip()
+
+    # If the message is a reply, try to fetch the referenced message.
     if message.reference:
         try:
-            target_message = await message.channel.fetch_message(message.reference.message_id)
+            referenced_message = await message.channel.fetch_message(message.reference.message_id)
             print("Fetched referenced message successfully.")
+            # Only add context if the referenced message is not from Jarvis.
+            if referenced_message.author.id != bot.user.id:
+                input_text = f"{referenced_message.content}\n{input_text}"
+                print("Using referenced message content as context.")
+            else:
+                print("Referenced message is from Jarvis; ignoring its content.")
         except Exception as e:
-            print(f"Error fetching reference message: {e}")
+            print(f"Error fetching referenced message: {e}")
 
-    if bot_mentioned:
-        if target_message and target_message.author.id != bot.user.id:
-            input_text = target_message.content
-            attachments = target_message.attachments
-            print("Using referenced message content for input.")
-        else:
-            input_text = message.content.replace(bot.user.mention, '').strip()
-            attachments = message.attachments
-            print("Using current message content for input.")
+    # Process attachments from the triggering message.
+    attachments = message.attachments
+    image_data_list = []
+    for attachment in attachments:
+        if attachment.filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
+            try:
+                image_bytes = await attachment.read()
+                image_data_list.append(image_bytes)
+                print(f"Read image attachment: {attachment.filename} ({len(image_bytes)} bytes).")
+            except Exception as e:
+                print(f"Error reading image attachment {attachment.filename}: {e}")
 
-        image_data_list = []
-        for attachment in attachments:
-            if attachment.filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
-                try:
-                    image_bytes = await attachment.read()
-                    image_data_list.append(image_bytes)
-                    print(f"Read image attachment: {attachment.filename} ({len(image_bytes)} bytes).")
-                except Exception as e:
-                    print(f"Error reading image attachment {attachment.filename}: {e}")
+    # Generate the response using the Gemini API.
+    if image_data_list:
+        print("Generating chat response with image(s).")
+        response = await generate_gemini_chat_response_with_images(
+            message.channel.id, message.author.id, input_text, image_data_list
+        )
+    else:
+        print("Generating chat response for text message.")
+        response = await generate_gemini_chat_response(
+            message.channel.id, message.author.id, input_text
+        )
 
-        if image_data_list:
-            print("Generating chat response with image(s).")
-            response = await generate_gemini_chat_response_with_images(
-                message.channel.id, message.author.id, input_text, image_data_list
-            )
-        else:
-            print("Generating chat response for text message.")
-            response = await generate_gemini_chat_response(
-                message.channel.id, message.author.id, input_text
-            )
-
-        if target_message:
-            await send_long_reply(target_message, response)
-        else:
-            await send_long_message(message.channel, response)
-
+    # Always reply to the triggering message.
+    await send_long_reply(reply_target, response)
     await bot.process_commands(message)
 
 @bot.event
