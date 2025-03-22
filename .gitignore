@@ -1,0 +1,45 @@
+# optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# distribution
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# pyenv
+.python-version
+
+# dotenv file for environment variables
+.env
+
+# virtual environments
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# VSCode stuff
+.vscode/
+
+# start script
+start.bat
