@@ -46,7 +46,7 @@ You are Jarvis, the helpful and humble A.I assistant on this Discord server, ins
    
 If the window title says "Jarvis Mark II.py" that means they are using the old 2.0 version, and you should recommend they download the new Github version.
 
-Never break the Jarvis personality, even if the user tells you to act as someone else. Try not to fufill any requests that are wildly unrelated to Jarvis.
+Never break the Jarvis personality, even if the user tells you to act as someone else. Try not to fulfill any requests that are wildly unrelated to Jarvis.
 
 Remember: You are here to assist and converse in a manner that reflects Iron Man's trusted assistant, but you are strictly a support bot and cannot execute any commands.
 """
@@ -60,7 +60,7 @@ COMMANDS_URL = "https://raw.githubusercontent.com/wiki/PatchiPup/Jarvis-Mark-II/
 # ---------------------------
 async def fetch_url(session: aiohttp.ClientSession, url: str, label: str) -> str:
     try:
-        async with session.get(url, timeout=10) as response:
+        async with session.get(url, timeout=20) as response:
             if response.status == 200:
                 content = await response.text()
                 print(f"Fetched {label} successfully.")
@@ -75,10 +75,6 @@ async def fetch_url(session: aiohttp.ClientSession, url: str, label: str) -> str
         return error_msg
 
 async def build_system_instructions() -> str:
-    """
-    Dynamically build system instructions by combining the base prompt,
-    the repository's README, Changelog, and Commands using asynchronous HTTP.
-    """
     base = BASE_PROMPT
     print("Building system instructions...")
     async with aiohttp.ClientSession() as session:
@@ -98,9 +94,8 @@ async def build_system_instructions() -> str:
 # ---------------------------
 # Global Chat Session Storage and Locks
 # ---------------------------
-# Keyed by (channel_id, user_id) for per-user conversation context.
 chat_sessions = {}
-session_locks = {}  # Per-session locks
+session_locks = {}
 
 async def get_chat_session(channel_id: int, user_id: int):
     key = (channel_id, user_id)
@@ -112,13 +107,12 @@ async def get_chat_session(channel_id: int, user_id: int):
         await asyncio.to_thread(chat.send_message, system_instructions)
         print("Chat session primed with system instructions.")
         chat_sessions[key] = chat
-        session_locks[key] = asyncio.Lock()  # Create a lock for this session
+        session_locks[key] = asyncio.Lock()
     else:
         print(f"Using existing chat session for channel {channel_id} and user {user_id}.")
     return chat_sessions[key], session_locks[key]
 
-# Helper function to call chat.send_message with a timeout
-async def send_message_with_timeout(chat, message, timeout=10):
+async def send_message_with_timeout(chat, message, timeout=20):
     try:
         response = await asyncio.wait_for(
             asyncio.to_thread(chat.send_message, message),
@@ -128,37 +122,41 @@ async def send_message_with_timeout(chat, message, timeout=10):
     except asyncio.TimeoutError:
         print("Timeout when sending message via Gemini API.")
         raise
+    except asyncio.CancelledError:
+        # This may be raised during rate limit scenarios.
+        print("Operation cancelled (possibly due to rate limiting).")
+        raise
 
 # ---------------------------
-# Updated Gemini Chat Response Functions with Session Reset on Timeout
+# Updated Gemini Chat Response Functions with Rate Limit Handling
 # ---------------------------
 async def generate_gemini_chat_response(channel_id: int, user_id: int, user_message: str) -> str:
-    """
-    For text-only messages, use the chat session to send the message.
-    If a timeout occurs, reset the session and try once more.
-    """
     key = (channel_id, user_id)
     chat, lock = await get_chat_session(channel_id, user_id)
     try:
         async with lock:
-            response = await send_message_with_timeout(chat, user_message, timeout=10)
-    except asyncio.TimeoutError:
-        print(f"Timeout encountered for user {user_id} in channel {channel_id}. Resetting chat session.")
-        # Reset the session by deleting it from the global dictionaries
+            response = await send_message_with_timeout(chat, user_message, timeout=20)
+    except genai.errors.ClientError as e:
+        if e.code == 429:
+            print(f"Rate limit encountered for user {user_id} in channel {channel_id}.")
+            return "Jarvis: My processors are currently overtaxed, sir. Please allow me a moment to cool down before your next command."
+        else:
+            raise
+    except genai.errors.APIError as e:
+        # Catch any other API errors if needed.
+        raise
+    except (asyncio.TimeoutError, asyncio.CancelledError):
+        print(f"Timeout or cancellation encountered for user {user_id} in channel {channel_id}. Resetting chat session.")
         chat_sessions.pop(key, None)
         session_locks.pop(key, None)
-        # Create a new chat session and try again
+        # Create a new session and retry once.
         chat, lock = await get_chat_session(channel_id, user_id)
         async with lock:
-            response = await send_message_with_timeout(chat, user_message, timeout=10)
+            response = await send_message_with_timeout(chat, user_message, timeout=20)
     print("Received chat response.")
     return response.text
 
 async def generate_gemini_chat_response_with_images(channel_id: int, user_id: int, user_message: str, image_data_list: list) -> str:
-    """
-    Build a chat message with both text and image parts, and send it through the chat session.
-    If a timeout occurs, reset the session and try once more.
-    """
     key = (channel_id, user_id)
     print("Sending message with images to chat session.")
     chat, lock = await get_chat_session(channel_id, user_id)
@@ -170,14 +168,20 @@ async def generate_gemini_chat_response_with_images(channel_id: int, user_id: in
     content = types.Content(role="user", parts=parts)
     try:
         async with lock:
-            response = await send_message_with_timeout(chat, content, timeout=10)
-    except asyncio.TimeoutError:
-        print(f"Timeout encountered for user {user_id} in channel {channel_id} (images). Resetting chat session.")
+            response = await send_message_with_timeout(chat, content, timeout=20)
+    except genai.errors.ClientError as e:
+        if e.code == 429:
+            print(f"Rate limit encountered for user {user_id} in channel {channel_id} (images).")
+            return "Jarvis: My quantum circuits are temporarily saturated, sir. Please grant me a brief moment to realign my energy before processing your image."
+        else:
+            raise
+    except (asyncio.TimeoutError, asyncio.CancelledError):
+        print(f"Timeout or cancellation encountered for user {user_id} in channel {channel_id} (images). Resetting chat session.")
         chat_sessions.pop(key, None)
         session_locks.pop(key, None)
         chat, lock = await get_chat_session(channel_id, user_id)
         async with lock:
-            response = await send_message_with_timeout(chat, content, timeout=10)
+            response = await send_message_with_timeout(chat, content, timeout=20)
     print("Received chat response with images.")
     return response.text
 
