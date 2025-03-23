@@ -41,7 +41,8 @@ venv.bak/
 # VSCode stuff
 .vscode/
 
-# my stuff
+# ignore stuff
 start.bat
 update.txt
 ssh.txt
+config.ini
