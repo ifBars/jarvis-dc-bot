@@ -19,14 +19,18 @@ async def on_message(message):
         return
 
     reply_target = message
+    sender_info = f"{message.author.name}"
     input_text = message.content.replace(bot.user.mention, '').strip()
+    input_text = f"[From {sender_info}]: {input_text}"
 
     if message.reference:
         try:
             referenced_message = await message.channel.fetch_message(message.reference.message_id)
             print("Fetched referenced message successfully.")
             if referenced_message.author.id != bot.user.id:
-                input_text = f"{referenced_message.content}\n{input_text}"
+                ref_sender = f"{referenced_message.author.name}"
+                ref_context = f"[From {ref_sender}]: {referenced_message.content}"
+                input_text = f"{ref_context}\n{input_text}"
                 print("Using referenced message content as context.")
             else:
                 print("Referenced message is from Jarvis; ignoring its content.")
@@ -43,6 +47,12 @@ async def on_message(message):
                 print(f"Read image attachment: {attachment.filename} ({len(image_bytes)} bytes).")
             except Exception as e:
                 print(f"Error reading image attachment {attachment.filename}: {e}")
+                
+    mention_info = ""
+    other_mentions = [m for m in message.mentions if m.id != bot.user.id]
+    if other_mentions:
+        mention_info = "Mentioned Users: " + ", ".join([f"{m.name}" for m in other_mentions])
+        input_text += f"\n{mention_info}"
 
     if image_data_list:
         print("Generating chat response with image(s).")
