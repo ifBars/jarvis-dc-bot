@@ -6,7 +6,6 @@ from sender import send_long_message, send_long_reply
 from chat import cleanup_old_sessions
 import io
 
-# Enable intents for message content
 intents = discord.Intents.default()
 intents.message_content = True
 
@@ -70,7 +69,6 @@ async def on_message(message):
         )
 
     await send_long_reply(reply_target, response)
-    await bot.process_commands(message)
 
 @bot.tree.command(name='search', description="Search using GoogleSearchRetrieval.")
 async def search_command(interaction: discord.Interaction, query: str):
