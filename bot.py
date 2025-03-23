@@ -75,11 +75,10 @@ async def on_message(message):
 @bot.tree.command(name='search', description="Search using GoogleSearchRetrieval.")
 async def search_command(interaction: discord.Interaction, query: str):
     """
-    A Discord bot command that uses GoogleSearchRetrieval to fetch search results.
+    Uses GoogleSearchRetrieval to fetch search results.
     Usage: /search <your query here>
     """
     print(f"Received search command from {interaction.user.name} with query: {query}")
-    # Defer the response to prevent the interaction from expiring.
     await interaction.response.defer()
     
     try:
@@ -90,9 +89,8 @@ async def search_command(interaction: discord.Interaction, query: str):
         )
     except Exception as e:
         print(f"Error during search command execution: {e}")
-        response = "Jarvis: I'm sorry, but I encountered an error processing your search request."
+        response = "I'm sorry, but I encountered an error processing your search request."
     
-    # Check if the response exceeds Discord's 2000-character limit.
     if len(response) > 2000:
         file_obj = io.BytesIO(response.encode('utf-8'))
         file = discord.File(file_obj, filename="response.txt")
