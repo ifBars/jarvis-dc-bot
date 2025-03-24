@@ -100,7 +100,7 @@ async def search_command(interaction: discord.Interaction, query: str):
 async def help(interaction: discord.Interaction):
     embed = discord.Embed(
         title="Jarvis Commands",
-        description="Text commands can be ran by sending a message similar to the command name.",
+        description="Text commands can be ran by sending a message similar to the command name. You can also just ask Jarvis anything and he will reply.",
         color=discord.Color.blue()
     )
     

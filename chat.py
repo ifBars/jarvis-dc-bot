@@ -10,14 +10,14 @@ session_locks = {}
 session_last_used = {}
 SESSION_EXPIRY_SECONDS = 1800  # Sessions expire after 30 minutes of inactivity
 
-async def get_chat_session(channel_id: int, user_id: int):
+async def get_chat_session(channel_id: int, user_id: int, model_name: str = "gemini-2.0-flash"):
     key = (channel_id, user_id)
     now = datetime.now(timezone.utc)
     if key not in chat_sessions:
-        print(f"Creating new chat session for channel {channel_id} and user {user_id}.")
+        print(f"Creating new chat session for channel {channel_id} and user {user_id} using model {model_name}.")
         client = genai.Client(api_key=GEMINI_API_KEY)
         gen_config = types.GenerateContentConfig(temperature=0.9)
-        chat = await asyncio.to_thread(client.chats.create, model="gemini-2.0-flash", config=gen_config)
+        chat = await asyncio.to_thread(client.chats.create, model=model_name, config=gen_config)
         system_instructions = await build_system_instructions()
         await asyncio.to_thread(chat.send_message, system_instructions)
         print("Chat session primed with system instructions.")

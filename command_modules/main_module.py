@@ -2,6 +2,7 @@ from commands import overwrite_response
 import random
 import requests
 import json
+import io
 from config import TENOR_API_KEY
 
 CLIENT_KEY = "jarvis-support-bot"
@@ -13,11 +14,42 @@ command_handlers = {
     "ggs": lambda term: (search_and_send_gif, (term,)),
 }
 
+# "wrf": lambda content: (send_file, parse_file_input(content)),
+
 commands_string = """
     gsc()         - Scream.
     gjm()         - Send a meme regarding jarvis. This can be used as a comeback.
     ggs(search)   - Search and send a gif using the provided search term.
 """
+
+# wrf(filename|content)         - Send content as a file. This can be used when fitting.
+
+def parse_file_input(content):
+    """
+    Parses the input string from Gemini.
+    
+    Expected format: "filename|file content"
+    
+    If the pipe '|' separator is not found, the default filename 'gemini_file.txt' is used,
+    and the entire content is treated as the file content.
+    """
+    if not content:
+        return ("gemini_file.txt", "No content provided")
+    parts = content.split("|", 1)
+    if len(parts) == 2:
+        filename = parts[0].strip()
+        file_content = parts[1].strip()
+        return (filename, file_content)
+    else:
+        return ("gemini_file.txt", content.strip())
+
+def send_file(filename, content):
+    """
+    Sends the provided content as a file. The payload is structured as a dictionary
+    containing the filename and the content.
+    """
+    file_payload = io.BytesIO(content.encode())
+    overwrite_response(file_payload)
 
 def send_gif(url):
     overwrite_response(url)
