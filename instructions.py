@@ -1,4 +1,5 @@
 import aiohttp
+import asyncio
 from command_modules_init import all_commands_str
 
 BASE_PROMPT = """
@@ -55,12 +56,17 @@ Your Commands:
 README_URL = "https://raw.githubusercontent.com/PatchiPup/Jarvis-Mark-II/refs/heads/main/README.MD"
 CHANGELOG_URL = "https://raw.githubusercontent.com/PatchiPup/Jarvis-Mark-II/refs/heads/main/CHANGELOG.MD"
 COMMANDS_URL = "https://raw.githubusercontent.com/wiki/PatchiPup/Jarvis-Mark-II/Commands.md"
+CACHE = {}
 
-async def fetch_url(session: aiohttp.ClientSession, url: str, label: str) -> str:
+async def fetch_url(session: aiohttp.ClientSession, url: str, label: str, use_cache: bool = True) -> str:
+    if use_cache and url in CACHE:
+        print(f"Using cached content for {label}.")
+        return CACHE[url]
     try:
         async with session.get(url, timeout=20) as response:
             if response.status == 200:
                 content = await response.text()
+                CACHE[url] = content
                 print(f"Fetched {label} successfully.")
                 return content
             else:
@@ -76,14 +82,19 @@ async def build_system_instructions() -> str:
     base = BASE_PROMPT
     print("Building system instructions...")
     async with aiohttp.ClientSession() as session:
-        readme_content = await fetch_url(session, README_URL, "README")
-        changelog_content = await fetch_url(session, CHANGELOG_URL, "Changelog")
-        commands_content = await fetch_url(session, COMMANDS_URL, "Commands")
+        readme_future = fetch_url(session, README_URL, "README")
+        changelog_future = fetch_url(session, CHANGELOG_URL, "Changelog")
+        commands_future = fetch_url(session, COMMANDS_URL, "Commands")
+        
+        readme_content, changelog_content, commands_content = await asyncio.gather(
+            readme_future, changelog_future, commands_future
+        )
     
     system_instructions = (
         base + "\n\n" + all_commands_str +
         "## README\n" + readme_content + "\n\n" +
-        changelog_content + "\n\n" + "## Marvel Rivals AI Asisstant Commands (you cannot run these)" + 
+        changelog_content + "\n\n" +
+        "## Marvel Rivals AI Asisstant Commands (you cannot run these)" +
         commands_content
     )
     print("System instructions built successfully.")

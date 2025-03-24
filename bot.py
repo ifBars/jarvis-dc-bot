@@ -124,12 +124,12 @@ async def on_ready():
     print(f"Logged in as {bot.user.name}")
     print("Jarvis support bot is online!")
     
-    await bot.tree.sync()
+    #await bot.tree.sync()
     print("Global slash commands synced")
     
     GUILD_ID = 1342208748147576924
     guild = discord.Object(id=GUILD_ID)
-    await bot.tree.sync(guild=guild)
+    #await bot.tree.sync(guild=guild)
     print("Guild slash commands synced")
     
     bot.loop.create_task(cleanup_old_sessions())  # Start cleanup task
