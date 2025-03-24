@@ -1,7 +1,6 @@
 import pkgutil
 import importlib
 import command_modules
-# from localization import _
 # from config import ENABLED_MODULES
 
 all_commands = {}

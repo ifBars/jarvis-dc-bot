@@ -4,7 +4,6 @@ import requests
 import json
 from config import TENOR_API_KEY
 
-# Set your client key and desired limit.
 CLIENT_KEY = "jarvis-support-bot"
 LIMIT = 8
 
@@ -48,7 +47,9 @@ def search_and_send_gif(search_term):
     Searches for a gif using the Google Tenor API (v2) with the given search term,
     then sends the first result's gif URL. Uses the 'media_formats' from the v2 response.
     """
-    # Build the Tenor v2 search URL.
+    if search_term.strip().lower() == "search":
+        return
+    
     search_url = (
         f"https://tenor.googleapis.com/v2/search?q={search_term}"
         f"&key={TENOR_API_KEY}"
@@ -58,13 +59,12 @@ def search_and_send_gif(search_term):
     
     try:
         response = requests.get(search_url)
-        response.raise_for_status()  # Raise an error for bad responses.
+        response.raise_for_status()
         data = response.json()
         results = data.get("results")
         if results:
-            # In Tenor API v2, each result includes a "media_formats" dictionary.
-            # Here, we use the "gif" key to get the URL of the smaller gif size.
-            gif_url = results[0]["media_formats"]["gif"]["url"]
+            random_result = random.choice(results)
+            gif_url = random_result["media_formats"]["gif"]["url"]
             overwrite_response(gif_url)
         else:
             overwrite_response("No gif found for your search term.")

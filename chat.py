@@ -7,7 +7,7 @@ from config import GEMINI_API_KEY
 
 chat_sessions = {}
 session_locks = {}
-session_last_used = {}  # Added to track last usage time for each session
+session_last_used = {}
 SESSION_EXPIRY_SECONDS = 1800  # Sessions expire after 30 minutes of inactivity
 
 async def get_chat_session(channel_id: int, user_id: int):
@@ -16,7 +16,7 @@ async def get_chat_session(channel_id: int, user_id: int):
     if key not in chat_sessions:
         print(f"Creating new chat session for channel {channel_id} and user {user_id}.")
         client = genai.Client(api_key=GEMINI_API_KEY)
-        gen_config = types.GenerateContentConfig(temperature=0.7)
+        gen_config = types.GenerateContentConfig(temperature=0.9)
         chat = await asyncio.to_thread(client.chats.create, model="gemini-2.0-flash", config=gen_config)
         system_instructions = await build_system_instructions()
         await asyncio.to_thread(chat.send_message, system_instructions)
@@ -25,7 +25,6 @@ async def get_chat_session(channel_id: int, user_id: int):
         session_locks[key] = asyncio.Lock()
     else:
         print(f"Using existing chat session for channel {channel_id} and user {user_id}.")
-    # Update last used timestamp
     session_last_used[key] = now
     return chat_sessions[key], session_locks[key]
 

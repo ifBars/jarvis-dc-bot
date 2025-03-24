@@ -22,7 +22,7 @@ async def on_message(message):
         return
 
     reply_target = message
-    sender_info = f"{message.author.name}"
+    sender_info = f"{message.author.display_name}"
     input_text = message.content.replace(bot.user.mention, '').strip()
     input_text = f"[From {sender_info}]: {input_text}"
 
@@ -31,7 +31,7 @@ async def on_message(message):
             referenced_message = await message.channel.fetch_message(message.reference.message_id)
             print("Fetched referenced message successfully.")
             if referenced_message.author.id != bot.user.id:
-                ref_sender = f"{referenced_message.author.name}"
+                ref_sender = f"{referenced_message.author.display_name}"
                 ref_context = f"[From {ref_sender}]: {referenced_message.content}"
                 input_text = f"{ref_context}\n{input_text}"
                 print("Using referenced message content as context.")
@@ -96,10 +96,40 @@ async def search_command(interaction: discord.Interaction, query: str):
     else:
         await interaction.followup.send(response)
 
+@bot.tree.command(name='help', description='Display a list of commands that Jarvis can run')
+async def help(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="Jarvis Commands",
+        description="Text commands can be ran by sending a message similar to the command name.",
+        color=discord.Color.blue()
+    )
+    
+    slash_commands = (
+        "**/help** - Display this list of commands.\n"
+        "**/search** - Search google and get a summarized result."
+    )
+    embed.add_field(name="Slash Commands", value=slash_commands, inline=False)
+    
+    text_commands = (
+        "`scream` - Make Jarvis scream.\n"
+        "`jarvis meme` - Sends a meme regarding Jarvis.\n"
+        "`send a [term] gif` - Search and send a gif using the provided search term."
+    )
+    embed.add_field(name="Text Commands", value=text_commands, inline=False)
+    
+    await interaction.response.send_message(embed=embed)
+
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user.name}")
     print("Jarvis support bot is online!")
+    
     await bot.tree.sync()
-    print("Slash commands synced")
+    print("Global slash commands synced")
+    
+    GUILD_ID = 1342208748147576924
+    guild = discord.Object(id=GUILD_ID)
+    await bot.tree.sync(guild=guild)
+    print("Guild slash commands synced")
+    
     bot.loop.create_task(cleanup_old_sessions())  # Start cleanup task
