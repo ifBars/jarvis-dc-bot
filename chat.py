@@ -16,10 +16,9 @@ async def get_chat_session(channel_id: int, user_id: int, model_name: str = "gem
     if key not in chat_sessions:
         print(f"Creating new chat session for channel {channel_id} and user {user_id} using model {model_name}.")
         client = genai.Client(api_key=GEMINI_API_KEY)
-        gen_config = types.GenerateContentConfig(temperature=0.9)
-        chat = await asyncio.to_thread(client.chats.create, model=model_name, config=gen_config)
         system_instructions = await build_system_instructions()
-        await asyncio.to_thread(chat.send_message, system_instructions)
+        gen_config = types.GenerateContentConfig(temperature=0.9, system_instruction=system_instructions)
+        chat = await asyncio.to_thread(client.chats.create, model=model_name, config=gen_config)
         print("Chat session primed with system instructions.")
         chat_sessions[key] = chat
         session_locks[key] = asyncio.Lock()

@@ -92,6 +92,8 @@ async def search_command(interaction: discord.Interaction, query: str):
     if len(response) > 2000:
         file_obj = io.BytesIO(response.encode('utf-8'))
         file = discord.File(file_obj, filename="response.txt")
+        # We send long responses as a txt file, because I couldn't be bothered trying to get a split messages response working since this is a slash command
+        # feel free to improve this if ya want too
         await interaction.followup.send("Response too long; see attached file:", file=file)
     else:
         await interaction.followup.send(response)
