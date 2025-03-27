@@ -26,6 +26,20 @@ async def on_message(message):
     input_text = message.content.replace(bot.user.mention, '').strip()
     input_text = f"[From {sender_info}]: {input_text}"
 
+    # Initialize image_data_list before checking referenced message
+    image_data_list = []
+
+    # Process current message attachments first
+    for attachment in message.attachments:
+        if attachment.filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
+            try:
+                image_bytes = await attachment.read()
+                image_data_list.append(image_bytes)
+                print(f"Read image attachment: {attachment.filename} ({len(image_bytes)} bytes).")
+            except Exception as e:
+                print(f"Error reading image attachment {attachment.filename}: {e}")
+
+    # Then process referenced message if it exists
     if message.reference:
         try:
             referenced_message = await message.channel.fetch_message(message.reference.message_id)
@@ -35,21 +49,20 @@ async def on_message(message):
                 ref_context = f"[From {ref_sender}]: {referenced_message.content}"
                 input_text = f"{ref_context}\n{input_text}"
                 print("Using referenced message content as context.")
+                
+                # Extract images from referenced message
+                for ref_attachment in referenced_message.attachments:
+                    if ref_attachment.filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
+                        try:
+                            ref_image_bytes = await ref_attachment.read()
+                            image_data_list.append(ref_image_bytes)
+                            print(f"Read image attachment from referenced message: {ref_attachment.filename} ({len(ref_image_bytes)} bytes).")
+                        except Exception as e:
+                            print(f"Error reading image attachment from referenced message {ref_attachment.filename}: {e}")
             else:
                 print("Referenced message is from Jarvis; ignoring its content.")
         except Exception as e:
             print(f"Error fetching referenced message: {e}")
-
-    attachments = message.attachments
-    image_data_list = []
-    for attachment in attachments:
-        if attachment.filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
-            try:
-                image_bytes = await attachment.read()
-                image_data_list.append(image_bytes)
-                print(f"Read image attachment: {attachment.filename} ({len(image_bytes)} bytes).")
-            except Exception as e:
-                print(f"Error reading image attachment {attachment.filename}: {e}")
                 
     mention_info = ""
     other_mentions = [m for m in message.mentions if m.id != bot.user.id]
@@ -57,16 +70,20 @@ async def on_message(message):
         mention_info = "Mentioned Users: " + ", ".join([f"{m.name}" for m in other_mentions])
         input_text += f"\n{mention_info}"
 
-    if image_data_list:
-        print("Generating chat response with image(s).")
-        response = await generate_gemini_chat_response_with_images(
-            message.channel.id, message.author.id, input_text, image_data_list
-        )
-    else:
-        print("Generating chat response for text message.")
-        response = await generate_gemini_chat_response(
-            message.channel.id, message.author.id, input_text
-        )
+    try:
+        if image_data_list:
+            print(f"Generating chat response with {len(image_data_list)} image(s).")
+            response = await generate_gemini_chat_response_with_images(
+                message.channel.id, message.author.id, input_text, image_data_list
+            )
+        else:
+            print("Generating chat response for text message.")
+            response = await generate_gemini_chat_response(
+                message.channel.id, message.author.id, input_text
+            )
+    except Exception as e:
+        print(f"Error generating response: {e}")
+        response = "I encountered an error processing your message with images. Please try again or send your message without images."
 
     await send_long_reply(reply_target, response)
 

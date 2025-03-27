@@ -87,15 +87,22 @@ async def generate_gemini_chat_response_with_images(channel_id: int, user_id: in
     print("Sending message with images to chat session.")
     model_name = await evaluate_task_complexity(user_message)
     chat, lock = await get_chat_session(channel_id, user_id, model_name)
-    parts = [types.Part.from_text(text=user_message)]
+    
+    # Build parts list
+    parts = []
+    # Add text part
+    parts.append(types.Part.from_text(text=user_message))
     print(f"Text part added: {user_message}")
+    
+    # Add image parts
     for index, image_data in enumerate(image_data_list, start=1):
         print(f"Adding image part {index} (size: {len(image_data)} bytes).")
         parts.append(types.Part.from_bytes(data=image_data, mime_type="image/jpeg"))
-    content = types.Content(role="user", parts=parts)
+    
     try:
         async with lock:
-            response = await send_message_with_timeout(chat, content, timeout=20)
+            # Pass the list of parts directly instead of wrapping in a Content object
+            response = await send_message_with_timeout(chat, parts, timeout=20)
     except genai.errors.ClientError as e:
         if e.code == 429:
             if model_name == "gemini-2.0-flash-thinking-exp-01-21":
@@ -106,7 +113,7 @@ async def generate_gemini_chat_response_with_images(channel_id: int, user_id: in
                 fallback_model = "gemini-2.0-flash"
                 chat, lock = await get_chat_session(channel_id, user_id, fallback_model)
                 async with lock:
-                    response = await send_message_with_timeout(chat, content, timeout=20)
+                    response = await send_message_with_timeout(chat, parts, timeout=20)
             else:
                 print(f"Rate limit encountered for user {user_id} in channel {channel_id} (images).")
                 return ("Jarvis: My quantum circuits are temporarily saturated, sir. "
@@ -120,7 +127,7 @@ async def generate_gemini_chat_response_with_images(channel_id: int, user_id: in
         session_last_used.pop(key, None)
         chat, lock = await get_chat_session(channel_id, user_id, model_name)
         async with lock:
-            response = await send_message_with_timeout(chat, content, timeout=20)
+            response = await send_message_with_timeout(chat, parts, timeout=20)
     print("Received chat response with images.")
     return process_command(response.text)
 
