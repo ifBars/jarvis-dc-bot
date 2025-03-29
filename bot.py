@@ -53,28 +53,25 @@ async def on_message(message):
                 message.reference.message_id
             )
             print("Fetched referenced message successfully.")
-            if referenced_message.author.id != bot.user.id:
-                ref_sender = f"{referenced_message.author.display_name}"
-                ref_context = f"[From {ref_sender}]: {referenced_message.content}"
-                input_text = f"{ref_context}\n{input_text}"
-                print("Using referenced message content as context.")
+            ref_sender = f"{referenced_message.author.display_name}"
+            ref_context = f"[From {ref_sender}]: {referenced_message.content}"
+            input_text = f"{ref_context}\n{input_text}"
+            print("Using referenced message content as context.")
 
-                for ref_attachment in referenced_message.attachments:
-                    if ref_attachment.filename.lower().endswith(
-                        ('.png', '.jpg', '.jpeg', '.gif')
-                    ):
-                        try:
-                            ref_image_bytes = await ref_attachment.read()
-                            image_data_list.append(ref_image_bytes)
-                            print(
-                                f"Read image attachment from referenced message: {ref_attachment.filename} ({len(ref_image_bytes)} bytes)."
-                            )
-                        except Exception as e:
-                            print(
-                                f"Error reading image attachment from referenced message {ref_attachment.filename}: {e}"
-                            )
-            else:
-                print("Referenced message is from Jarvis; ignoring its content.")
+            for ref_attachment in referenced_message.attachments:
+                if ref_attachment.filename.lower().endswith(
+                    ('.png', '.jpg', '.jpeg', '.gif')
+                ):
+                    try:
+                        ref_image_bytes = await ref_attachment.read()
+                        image_data_list.append(ref_image_bytes)
+                        print(
+                            f"Read image attachment from referenced message: {ref_attachment.filename} ({len(ref_image_bytes)} bytes)."
+                        )
+                    except Exception as e:
+                        print(
+                            f"Error reading image attachment from referenced message {ref_attachment.filename}: {e}"
+                        )
         except Exception as e:
             print(f"Error fetching referenced message: {e}")
 
