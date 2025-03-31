@@ -11,9 +11,11 @@ async def evaluate_task_complexity(task: str) -> str:
     print("Evaluating task complexity")
 
     evaluation_prompt = (
-        "Analyze the following task and decide which model is more appropriate. "
-        "If the task involves helping the user or requires detailed reasoning, choose the 'gemini-2.0-flash-thinking-exp-01-21' model; "
-        "otherwise, choose the 'gemini-2.0-flash' model. " + task
+        "Analyze the following task and categorize it:\n"
+        "1. If it requires factual knowledge or technical help, use 'gemini-2.0-flash-thinking-exp-01-21'\n"
+        "2. If it's a simple conversation or greeting, use 'gemini-2.0-flash'\n"
+        "3. If it involves search or current information, use 'gemini-2.0-flash' with search retrieval\n"
+        f"Task: {task}"
     )
     
     client = genai.Client(api_key=GEMINI_API_KEY)
