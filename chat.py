@@ -17,7 +17,7 @@ async def get_chat_session(channel_id: int, user_id: int, model_name: str = "gem
         print(f"Creating new chat session for channel {channel_id} and user {user_id} using model {model_name}.")
         client = genai.Client(api_key=GEMINI_API_KEY)
         system_instructions = await build_system_instructions()
-        gen_config = types.GenerateContentConfig(temperature=0.75, system_instruction=system_instructions)
+        gen_config = types.GenerateContentConfig(temperature=0.85, system_instruction=system_instructions)
         chat = await asyncio.to_thread(client.chats.create, model=model_name, config=gen_config)
         print("Chat session primed with system instructions.")
         chat_sessions[key] = chat
