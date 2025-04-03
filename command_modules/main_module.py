@@ -81,6 +81,10 @@ def search_and_send_gif(search_term):
     """
     if search_term.strip().lower() == "search":
         return
+
+    if "hot" in search_term.lower() and "woman" in search_term.lower():
+        overwrite_response("I cannot search for that term sir. Please refrain from asking me to send sexual content.")
+        return
     
     search_url = (
         f"https://tenor.googleapis.com/v2/search?q={search_term}"
