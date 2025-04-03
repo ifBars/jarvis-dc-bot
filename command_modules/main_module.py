@@ -4,6 +4,7 @@ import requests
 import json
 import io
 from config import TENOR_API_KEY
+import re
 
 CLIENT_KEY = "jarvis-support-bot"
 LIMIT = 8
@@ -82,8 +83,9 @@ def search_and_send_gif(search_term):
     if search_term.strip().lower() == "search":
         return
 
-    if "hot" in search_term.lower() and "woman" in search_term.lower():
-        overwrite_response("I cannot search for that term sir. Please refrain from asking me to send sexual content.")
+    # More robust content filtering
+    if contains_inappropriate_content(search_term):
+        overwrite_response("I cannot search for that term. Please refrain from asking me to send inappropriate content.")
         return
     
     search_url = (
@@ -106,3 +108,46 @@ def search_and_send_gif(search_term):
             overwrite_response("No gif found for your search term.")
     except Exception as e:
         overwrite_response(f"An error occurred: {e}")
+
+def contains_inappropriate_content(text):
+    """
+    Checks if the text contains inappropriate content using more advanced detection.
+    Handles bypassing attempts like spaces between letters, character substitution, etc.
+    """
+    # Normalize the text: remove spaces, convert to lowercase
+    normalized_text = re.sub(r'\s+', '', text.lower())
+    
+    # Handle common letter substitutions (leetspeak variants)
+    substitutions = {
+        '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', 
+        '@': 'a', '$': 's', '!': 'i', '+': 't', '(': 'c',
+        ')': 'o', '|': 'l', '\/': 'v'
+    }
+    
+    for char, replacement in substitutions.items():
+        normalized_text = normalized_text.replace(char, replacement)
+    
+    # List of inappropriate terms and patterns
+    inappropriate_terms = [
+        'nude', 'naked', 'boob', 'tits', 'ass', 
+        'hotwoman', 'hotwomen', 'sexywoman', 'sexywomen',
+        'hotgirl', 'hotgirls', 'sexygirl', 'sexygirls',
+        'stripper', 'erotic', 'explicit'
+    ]
+    
+    # Check for inappropriate content
+    for term in inappropriate_terms:
+        if term in normalized_text:
+            return True
+            
+    # Check for combinations of concerning terms
+    concerning_pairs = [
+        ('hot', 'woman'), ('hot', 'girl'), ('sexy', 'woman'), 
+        ('sexy', 'girl'), ('naked', 'woman'), ('naked', 'girl')
+    ]
+    
+    for term1, term2 in concerning_pairs:
+        if term1 in normalized_text and term2 in normalized_text:
+            return True
+    
+    return False
