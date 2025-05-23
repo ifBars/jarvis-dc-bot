@@ -176,7 +176,6 @@ async def on_ready():
     print("Guild slash commands synced")
 
     bot.loop.create_task(cleanup_old_sessions())
-    bot.loop.create_task(schedule_daily_code())
 
 async def daily_code():
     channel_id = 1353101129495482559  
