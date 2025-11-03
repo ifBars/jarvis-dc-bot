@@ -12,9 +12,9 @@ async def evaluate_task_complexity(task: str) -> str:
 
     evaluation_prompt = (
         "Analyze the following task and categorize it:\n"
-        "1. If it requires factual knowledge or technical help, use 'gemini-2.0-flash-thinking-exp-01-21'\n"
-        "2. If it's a simple conversation or greeting, use 'gemini-2.0-flash'\n"
-        "3. If it involves search or current information, use 'gemini-2.0-flash' with search retrieval\n"
+        "1. If it requires factual knowledge or technical help, use 'gemini-2.5-pro'\n"
+        "2. If it's a simple conversation or greeting, use 'gemini-2.5-flash'\n"
+        "3. If it involves search or current information, use 'gemini-2.5-flash' with search retrieval\n"
         f"Task: {task}"
     )
     
@@ -35,17 +35,17 @@ async def evaluate_task_complexity(task: str) -> str:
         ),
     )
     
-    chat = await asyncio.to_thread(client.chats.create, model="gemini-2.0-flash-lite", config=generate_content_config)
+    chat = await asyncio.to_thread(client.chats.create, model="gemini-2.5-flash-lite", config=generate_content_config)
     response = await asyncio.to_thread(chat.send_message, evaluation_prompt)
     
     try:
         result = json.loads(response.text)
-        chosen_model = result.get("model", "gemini-2.0-flash")
-        print(f"gemini-2.0-flash-lite chose model: {chosen_model}")
+        chosen_model = result.get("model", "gemini-2.5-flash")
+        print(f"gemini-2.5-flash-lite chose model: {chosen_model}")
         return chosen_model
     except json.JSONDecodeError:
-        print("Failed to decode JSON, defaulting to gemini-2.0-flash")
-        return "gemini-2.0-flash"
+        print("Failed to decode JSON, defaulting to gemini-2.5-flash")
+        return "gemini-2.5-flash"
 
 async def generate_gemini_chat_response(channel_id: int, user_id: int, user_message: str) -> str:
     key = (channel_id, user_id)
@@ -56,12 +56,12 @@ async def generate_gemini_chat_response(channel_id: int, user_id: int, user_mess
             response = await send_message_with_timeout(chat, user_message, timeout=20)
     except genai.errors.ClientError as e:
         if e.code == 429:
-            if model_name == "gemini-2.0-flash-thinking-exp-01-21":
-                print(f"Rate limit encountered for thinking model for user {user_id} in channel {channel_id}. Retrying with gemini-2.0-flash.")
+            if model_name == "gemini-2.5-pro":
+                print(f"Rate limit encountered for pro model for user {user_id} in channel {channel_id}. Retrying with gemini-2.5-flash.")
                 chat_sessions.pop(key, None)
                 session_locks.pop(key, None)
                 session_last_used.pop(key, None)
-                fallback_model = "gemini-2.0-flash"
+                fallback_model = "gemini-2.5-flash"
                 chat, lock = await get_chat_session(channel_id, user_id, fallback_model)
                 async with lock:
                     response = await send_message_with_timeout(chat, user_message, timeout=20)
@@ -107,12 +107,12 @@ async def generate_gemini_chat_response_with_images(channel_id: int, user_id: in
             response = await send_message_with_timeout(chat, parts, timeout=20)
     except genai.errors.ClientError as e:
         if e.code == 429:
-            if model_name == "gemini-2.0-flash-thinking-exp-01-21":
-                print(f"Rate limit encountered for thinking model (images) for user {user_id} in channel {channel_id}. Retrying with gemini-2.0-flash.")
+            if model_name == "gemini-2.5-pro":
+                print(f"Rate limit encountered for pro model (images) for user {user_id} in channel {channel_id}. Retrying with gemini-2.5-flash.")
                 chat_sessions.pop(key, None)
                 session_locks.pop(key, None)
                 session_last_used.pop(key, None)
-                fallback_model = "gemini-2.0-flash"
+                fallback_model = "gemini-2.5-flash"
                 chat, lock = await get_chat_session(channel_id, user_id, fallback_model)
                 async with lock:
                     response = await send_message_with_timeout(chat, parts, timeout=20)
@@ -134,7 +134,7 @@ async def generate_gemini_chat_response_with_images(channel_id: int, user_id: in
     return process_command(response.text)
 
 search_client = genai.Client(api_key=GEMINI_API_KEY)
-model_id = "gemini-2.0-flash"
+model_id = "gemini-2.5-flash"
 google_search_tool = Tool(
     google_search=GoogleSearchRetrieval()
 )
